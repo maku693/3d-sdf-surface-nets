@@ -344,7 +344,8 @@ function renderDebugPanelDistanceFieldSlice() {
     const r = value > 0 ? Math.min(255, 255 * value) : 0;
     const g = value < 0 ? Math.min(255, 255 * value * -1) : 0;
     ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;
-    ctx.fillRect(x, y, 1, 1);
+    // inverse y axis because data has right-handed coordinate system
+    ctx.fillRect(x, distanceField.height - 1 - y, 1, 1);
   }
 }
 
