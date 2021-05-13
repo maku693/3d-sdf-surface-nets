@@ -171,24 +171,24 @@ const distanceField = new DistanceField(16);
 
 distanceField.drawDistanceFunction(
   merge(
-    translate(
-      distanceField.width / 4,
-      distanceField.height / 4,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 6)
-    ),
+    // translate(
+    //   distanceField.width / 4,
+    //   distanceField.height / 4,
+    //   distanceField.depth / 2,
+    //   sphere(distanceField.width / 6)
+    // ),
     translate(
       distanceField.width / 2,
       distanceField.height / 2,
       distanceField.depth / 2,
       sphere(distanceField.width / 4)
-    ),
-    translate(
-      (distanceField.width / 4) * 3,
-      (distanceField.height / 4) * 3,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 6)
     )
+    // translate(
+    //   (distanceField.width / 4) * 3,
+    //   (distanceField.height / 4) * 3,
+    //   distanceField.depth / 2,
+    //   sphere(distanceField.width / 6)
+    // )
   )
 );
 
@@ -353,10 +353,10 @@ debugPanelInput.addEventListener("input", () => {
   renderDebugPanelDistanceFieldSlice();
 });
 
-renderDebugPanelDistanceFieldSlice();
-
-const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
-debugPanelVerticesCount.textContent = vertextBufferData.positions.length * 4;
-
 const debugPanelDataCount = debugPanel.querySelector("#data-count");
 debugPanelDataCount.textContent = `${distanceField.data.length * 4} bytes`;
+
+const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
+debugPanelVerticesCount.textContent = vertextBufferData.positions.length / 3;
+
+renderDebugPanelDistanceFieldSlice();
