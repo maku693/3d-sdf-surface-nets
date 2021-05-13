@@ -302,11 +302,13 @@ const debugPanelInput = debugPanel.querySelector("input");
 debugPanelInput.min = 0;
 debugPanelInput.value = 0;
 debugPanelInput.max = distanceField.depth - 1;
+const debugPanelSDFSliceZ = debugPanel.querySelector("#sdf-slice-z");
 
-function renderDebugPanel() {
+function renderDebugPanelDistanceFieldSlice() {
   const ctx = debugPanelCanvas.getContext("2d");
   const distanceFieldSliceArea = distanceField.width * distanceField.height;
   const z = debugPanelInput.valueAsNumber;
+  debugPanelSDFSliceZ.textContent = z;
 
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (let i = 0; i < distanceFieldSliceArea; i++) {
@@ -327,7 +329,13 @@ function renderDebugPanel() {
 }
 
 debugPanelInput.addEventListener("input", () => {
-  renderDebugPanel();
+  renderDebugPanelDistanceFieldSlice();
 });
 
-renderDebugPanel();
+renderDebugPanelDistanceFieldSlice();
+
+const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
+debugPanelVerticesCount.textContent = vertextBufferData.positions.length * 4;
+
+const debugPanelDataCount = debugPanel.querySelector("#data-count");
+debugPanelDataCount.textContent = `${distanceField.data.length * 4} bytes`;
