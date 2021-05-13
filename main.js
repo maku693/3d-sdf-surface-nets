@@ -299,7 +299,7 @@ canvas.addEventListener("pointermove", (e) => {
   if (!lastPointerEvent) return;
   if (e.buttons !== 1) return;
 
-  const coefficient = 3;
+  const coefficient = 5;
 
   const movementY = e.clientY - lastPointerEvent.clientY;
   rotation.x += (movementY / e.target.clientHeight) * coefficient;
