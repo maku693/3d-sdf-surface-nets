@@ -249,24 +249,23 @@ gl.bufferData(gl.ARRAY_BUFFER, vertextBufferData.positions, gl.STATIC_DRAW);
 gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 gl.enableVertexAttribArray(a_position);
 
+const translation = [
+  distanceField.width * -0.5,
+  distanceField.height * -0.5,
+  distanceField.depth * -0.5,
+];
+const model = mat4.fromTranslation(mat4.create(), translation);
+
+const eye = [0, 0, distanceField.depth];
+const center = [0, 0, 0];
+const up = [0, 1, 0];
+const view = mat4.lookAt(mat4.create(), eye, center, up);
+
 function render(timestamp) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
   gl.viewport(0, 0, canvas.width, canvas.height);
-
-  const translation = [
-    distanceField.width * -0.5,
-    distanceField.height * -0.5,
-    distanceField.depth * -0.5,
-  ];
-  const model = mat4.fromTranslation(mat4.create(), translation);
-
-  const eye = [0, 0, distanceField.depth];
-  const center = [0, 0, 0];
-  vec3.rotateY(eye, eye, center, timestamp / 1000);
-  const up = [0, 1, 0];
-  const view = mat4.lookAt(mat4.create(), eye, center, up);
 
   const fovy = (60 / 180) * Math.PI;
   const aspect = canvas.width / canvas.height;
