@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "https://cdn.skypack.dev/gl-matrix";
+import { mat4 } from "https://cdn.skypack.dev/gl-matrix";
 
 class DistanceField {
   constructor(width, height, depth) {
@@ -259,7 +259,11 @@ const model = mat4.fromTranslation(mat4.create(), translation);
 const eye = [0, 0, distanceField.depth];
 const center = [0, 0, 0];
 const up = [0, 1, 0];
-const view = mat4.lookAt(mat4.create(), eye, center, up);
+const rotation = { x: 0, y: 0 };
+
+const fovy = (60 / 180) * Math.PI;
+const near = 0.1;
+const far = 1000;
 
 function render(timestamp) {
   canvas.width = canvas.clientWidth;
@@ -267,10 +271,11 @@ function render(timestamp) {
 
   gl.viewport(0, 0, canvas.width, canvas.height);
 
-  const fovy = (60 / 180) * Math.PI;
+  const view = mat4.lookAt(mat4.create(), eye, center, up);
+  mat4.rotateX(view, view, rotation.x);
+  mat4.rotateY(view, view, rotation.y);
+
   const aspect = canvas.width / canvas.height;
-  const near = 0.1;
-  const far = 1000;
   const projection = mat4.perspective(mat4.create(), fovy, aspect, near, far);
 
   const mvp = mat4.create();
@@ -286,10 +291,26 @@ function render(timestamp) {
   requestAnimationFrame(render);
 }
 
-canvas.addEventListener("touchstart", () => {}, { passive: false });
-canvas.addEventListener("touchcancel", () => {}, { passive: false });
-canvas.addEventListener("touchend", () => {}, { passive: false });
-canvas.addEventListener("touchmove", () => {}, { passive: false });
+let lastPointerEvent = null;
+canvas.addEventListener("pointerdown", (e) => {
+  lastPointerEvent = e;
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!lastPointerEvent) return;
+  if (e.buttons !== 1) return;
+
+  const coefficient = 3;
+
+  const movementY = e.clientY - lastPointerEvent.clientY;
+  rotation.x += (movementY / e.target.clientHeight) * coefficient;
+  rotation.x = Math.max(Math.PI * -0.5, rotation.x);
+  rotation.x = Math.min(Math.PI * 0.5, rotation.x);
+
+  const movementX = e.clientX - lastPointerEvent.clientX;
+  rotation.y += (movementX / e.target.clientWidth) * coefficient;
+
+  lastPointerEvent = e;
+});
 
 requestAnimationFrame(render);
 
