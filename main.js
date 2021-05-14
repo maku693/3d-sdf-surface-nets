@@ -245,7 +245,7 @@ const a_position = gl.getAttribLocation(program, "a_position");
 
 const vertexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, vertextBufferData.positions, gl.STATIC_DRAW);
+gl.bufferData(gl.ARRAY_BUFFER, vertextBufferData.positions, gl.DYNAMIC_DRAW);
 gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 gl.enableVertexAttribArray(a_position);
 
