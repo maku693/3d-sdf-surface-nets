@@ -115,10 +115,6 @@ export function getGeometryData(distanceField) {
       if (!(edges & (1 << j))) continue;
       edgeCount++;
 
-      if (i === 9) {
-        console.log(cubeEdgeCornerIndices[j]);
-      }
-
       const c0 = cubeEdgeCornerIndices[j][0];
       const c0x = c0 % 2;
       const c0y = Math.trunc(c0 / 2) % 2;
@@ -148,6 +144,8 @@ export function getGeometryData(distanceField) {
 
     if (edgeCount === 0) continue;
 
+    gridIndices[i] = positions.length / 3;
+
     dx /= edgeCount;
     dy /= edgeCount;
     dz /= edgeCount;
@@ -156,14 +154,54 @@ export function getGeometryData(distanceField) {
     const vx = x + 0.5 + dx;
     const vy = y + 0.5 + dy;
     const vz = z + 0.5 + dz;
-
-    gridIndices[i] = positions.length / 3;
     positions.push(vx, vy, vz);
+
+    const quads = [];
+    if (edges & 0b000000000001) {
+      // x, y - 1, z,
+      // x, y - 1, z - 1
+      // x, y, z
+      // x, y, z - 1
+      quads.push([
+        gridIndices[i - gridWidth],
+        gridIndices[i - gridWidth - gridWidth * gridHeight],
+        gridIndices[i],
+        gridIndices[i - gridWidth * gridHeight],
+      ]);
+    }
+    if (edges & 0b000000000010) {
+      // x, y, z
+      // x, y, z - 1
+      // x - 1, y, z
+      // x - 1, y, z - 1
+      quads.push([
+        gridIndices[i],
+        gridIndices[i - gridWidth * gridHeight],
+        gridIndices[i - 1],
+        gridIndices[i - 1 - gridWidth * gridHeight],
+      ]);
+    }
+    if (edges & 0b000000010000) {
+      // x - 1, y - 1, z
+      // x, y - 1, z
+      // x - 1, y, z
+      // x, y, z
+      quads.push([
+        gridIndices[i - 1 - gridWidth],
+        gridIndices[i - gridWidth],
+        gridIndices[i - 1],
+        gridIndices[i],
+      ]);
+    }
+
+    for (const quad of quads) {
+      indices.push(quad[0], quad[1], quad[3], quad[0], quad[3], quad[2]);
+    }
   }
 
   return {
     positions: new Float32Array(positions),
-    indices: new Float32Array(indices),
+    indices: new Uint16Array(indices),
   };
 }
 
@@ -171,28 +209,28 @@ const distanceField = new DistanceField(16);
 
 distanceField.drawDistanceFunction(
   merge(
-    // translate(
-    //   distanceField.width / 4,
-    //   distanceField.height / 4,
-    //   distanceField.depth / 2,
-    //   sphere(distanceField.width / 6)
-    // ),
+    translate(
+      distanceField.width / 4,
+      distanceField.height / 4,
+      distanceField.depth / 2,
+      sphere(distanceField.width / 6)
+    ),
     translate(
       distanceField.width / 2,
       distanceField.height / 2,
       distanceField.depth / 2,
       sphere(distanceField.width / 4)
+    ),
+    translate(
+      (distanceField.width / 4) * 3,
+      (distanceField.height / 4) * 3,
+      distanceField.depth / 2,
+      sphere(distanceField.width / 6)
     )
-    // translate(
-    //   (distanceField.width / 4) * 3,
-    //   (distanceField.height / 4) * 3,
-    //   distanceField.depth / 2,
-    //   sphere(distanceField.width / 6)
-    // )
   )
 );
 
-const vertextBufferData = getGeometryData(distanceField);
+const geometryData = getGeometryData(distanceField);
 
 const editor = document.getElementById("editor");
 const canvas = editor.querySelector("canvas");
@@ -215,7 +253,6 @@ attribute vec3 a_position;
 
 void main() {
   gl_Position = u_mvp * vec4(a_position, 1.0);
-  gl_PointSize = 2.0;
 }
 `
 );
@@ -245,9 +282,13 @@ const a_position = gl.getAttribLocation(program, "a_position");
 
 const vertexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, vertextBufferData.positions, gl.DYNAMIC_DRAW);
+gl.bufferData(gl.ARRAY_BUFFER, geometryData.positions, gl.DYNAMIC_DRAW);
 gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 gl.enableVertexAttribArray(a_position);
+
+const indexBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometryData.indices, gl.DYNAMIC_DRAW);
 
 const translation = [
   distanceField.width * -0.5,
@@ -284,7 +325,12 @@ function render(timestamp) {
 
   gl.uniformMatrix4fv(u_mvp, false, mvp);
 
-  gl.drawArrays(gl.POINTS, 0, vertextBufferData.positions.length / 3);
+  gl.drawElements(
+    gl.TRIANGLES,
+    geometryData.indices.length,
+    gl.UNSIGNED_SHORT,
+    0
+  );
 
   gl.flush();
 
@@ -357,6 +403,6 @@ const debugPanelDataCount = debugPanel.querySelector("#data-count");
 debugPanelDataCount.textContent = `${distanceField.data.length * 4} bytes`;
 
 const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
-debugPanelVerticesCount.textContent = vertextBufferData.positions.length / 3;
+debugPanelVerticesCount.textContent = geometryData.positions.length / 3;
 
 renderDebugPanelDistanceFieldSlice();
