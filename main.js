@@ -380,9 +380,11 @@ function render(timestamp) {
 
 let lastPointerEvent = null;
 canvas.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
   lastPointerEvent = e;
 });
 canvas.addEventListener("pointermove", (e) => {
+  e.preventDefault();
   if (!lastPointerEvent) return;
   if (e.buttons !== 1) return;
 
