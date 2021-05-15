@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "https://cdn.skypack.dev/gl-matrix";
+import { mat4, vec3, vec2 } from "https://cdn.skypack.dev/gl-matrix";
 
 class DistanceField {
   constructor(width, height, depth) {
@@ -339,7 +339,7 @@ const model = mat4.fromTranslation(mat4.create(), translation);
 const eye = [0, 0, distanceField.depth];
 const center = [0, 0, 0];
 const up = [0, 1, 0];
-const eyeRotation = { x: 0, y: 0 };
+const eyeRotation = [0, 0];
 let eyeDistance = 0;
 
 const fovy = (60 / 180) * Math.PI;
@@ -354,8 +354,8 @@ function render(timestamp) {
 
   const view = mat4.lookAt(mat4.create(), eye, center, up);
   mat4.translate(view, view, [0, 0, eyeDistance]);
-  mat4.rotateX(view, view, eyeRotation.x);
-  mat4.rotateY(view, view, eyeRotation.y);
+  mat4.rotateX(view, view, eyeRotation[0]);
+  mat4.rotateY(view, view, eyeRotation[1]);
 
   const aspect = canvas.width / canvas.height;
   const projection = mat4.perspective(mat4.create(), fovy, aspect, near, far);
@@ -378,35 +378,93 @@ function render(timestamp) {
   requestAnimationFrame(render);
 }
 
-let lastPointerEvent = null;
-canvas.addEventListener("pointerdown", (e) => {
-  e.preventDefault();
-  lastPointerEvent = e;
-});
-canvas.addEventListener("pointermove", (e) => {
-  e.preventDefault();
-  if (!lastPointerEvent) return;
-  if (e.buttons !== 1) return;
+let lastPointerPosition = null;
+
+function getMousePointerPosition(e) {
+  return vec2.fromValues(e.clientX, e.clientY);
+}
+
+function getTouchPointerPosition(e) {
+  return vec2.fromValues(e.touches[0].clientX, e.touches[0].clientY);
+}
+
+function updateEyeRotation(pointerPosition) {
+  if (!lastPointerPosition) return;
+
+  console.log(pointerPosition, lastPointerPosition);
 
   const coefficient = 5;
 
-  const movementY = e.clientY - lastPointerEvent.clientY;
-  eyeRotation.x += (movementY / e.target.clientHeight) * coefficient;
-  eyeRotation.x = Math.max(Math.PI * -0.5, eyeRotation.x);
-  eyeRotation.x = Math.min(Math.PI * 0.5, eyeRotation.x);
+  const my = pointerPosition[1] - lastPointerPosition[1]; // lastPointerEvent.clientY;
+  eyeRotation[0] += (my / canvas.clientHeight) * coefficient;
+  // Limit rotation
+  eyeRotation[0] = Math.max(Math.PI * -0.5, eyeRotation[0]);
+  eyeRotation[0] = Math.min(Math.PI * 0.5, eyeRotation[0]);
 
-  const movementX = e.clientX - lastPointerEvent.clientX;
-  eyeRotation.y += (movementX / e.target.clientWidth) * coefficient;
+  const mx = pointerPosition[0] - lastPointerPosition[0]; // lastPointerEvent.clientX;
+  eyeRotation[1] += (mx / canvas.clientWidth) * coefficient;
 
-  lastPointerEvent = e;
+  lastPointerPosition = pointerPosition;
+}
+
+function updateEyeDistance(movement) {
+  eyeDistance += movement;
+}
+
+canvas.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+
+  lastPointerPosition = getMousePointerPosition(e);
 });
+canvas.addEventListener("mousemove", (e) => {
+  e.preventDefault();
+
+  if (e.buttons !== 1) return;
+
+  updateEyeRotation(getMousePointerPosition(e));
+});
+
 canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
 
   const coefficient = 0.1;
 
-  eyeDistance -= e.deltaY * coefficient;
-  console.log(eyeDistance);
+  updateEyeDistance(e.deltaY * coefficient * -1);
+});
+
+let lastTouchDistance = 0;
+
+function getTouchDistance(e) {
+  const t0 = vec2.fromValues(e.touches[0].clientX, e.touches[0].clientY);
+  const t1 = vec2.fromValues(e.touches[1].clientX, e.touches[1].clientY);
+  return vec2.distance(t0, t1);
+}
+
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+
+  if (e.touches.length === 1) {
+    lastPointerPosition = getTouchPointerPosition(e);
+  }
+  if (e.touches.length === 2) {
+    lastTouchDistance = getTouchDistance(e);
+  }
+});
+
+canvas.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+
+  if (e.touches.length === 1) {
+    updateEyeRotation(getTouchPointerPosition(e));
+  }
+  if (e.touches.length === 2) {
+    const touchDistance = getTouchDistance(e);
+    const coefficient = 0.1;
+
+    updateEyeDistance((touchDistance - lastTouchDistance) * coefficient);
+
+    lastTouchDistance = touchDistance;
+  }
 });
 
 requestAnimationFrame(render);
