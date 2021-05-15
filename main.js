@@ -235,7 +235,7 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(16);
+const distanceField = new DistanceField(64);
 
 distanceField.drawDistanceFunction(
   merge(
@@ -510,12 +510,17 @@ debugPanelInput.addEventListener("input", () => {
 });
 
 const debugPanelDataCount = debugPanel.querySelector("#data-count");
-debugPanelDataCount.textContent = new Intl.NumberFormat("en", {
+debugPanelDataCount.textContent = `${new Intl.NumberFormat("en", {
   notation: "standard",
   style: "unit",
   unit: "byte",
   unitDisplay: "narrow",
-}).format(distanceField.data.length * 4);
+}).format(distanceField.data.length * 4)} (${new Intl.NumberFormat("en", {
+  notation: "compact",
+  style: "unit",
+  unit: "byte",
+  unitDisplay: "narrow",
+}).format(distanceField.data.length * 4)})`;
 
 const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
 debugPanelVerticesCount.textContent = new Intl.NumberFormat("en", {
