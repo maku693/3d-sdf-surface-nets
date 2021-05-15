@@ -78,6 +78,7 @@ const geometryElements = 6;
 const geometryStrides = 4 * geometryElements;
 
 export function getGeometryData(distanceField) {
+  console.time("getGeometryData");
   const vertices = [];
   const gridIndices = [];
   const indices = [];
@@ -220,14 +221,30 @@ export function getGeometryData(distanceField) {
       ]);
     }
 
-    for (const quad of quads) {
+    for (let j = 0; j < quads.length; j++) {
       if (cornerMask & 1) {
-        indices.push(quad[0], quad[3], quad[1], quad[0], quad[2], quad[3]);
+        indices.push(
+          quads[j][0],
+          quads[j][3],
+          quads[j][1],
+          quads[j][0],
+          quads[j][2],
+          quads[j][3]
+        );
       } else {
-        indices.push(quad[0], quad[1], quad[3], quad[0], quad[3], quad[2]);
+        indices.push(
+          quads[j][0],
+          quads[j][1],
+          quads[j][3],
+          quads[j][0],
+          quads[j][3],
+          quads[j][2]
+        );
       }
     }
   }
+
+  console.timeEnd("getGeometryData");
 
   return {
     vertices: new Float32Array(vertices),
