@@ -400,7 +400,12 @@ debugPanelInput.addEventListener("input", () => {
 });
 
 const debugPanelDataCount = debugPanel.querySelector("#data-count");
-debugPanelDataCount.textContent = `${distanceField.data.length * 4} bytes`;
+debugPanelDataCount.textContent = new Intl.NumberFormat("en", {
+  notation: "compact",
+  style: "unit",
+  unit: "byte",
+  unitDisplay: "narrow",
+}).format(distanceField.data.length * 4);
 
 const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
 debugPanelVerticesCount.textContent = geometryData.positions.length / 3;
