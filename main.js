@@ -110,6 +110,8 @@ export function getGeometryData(distanceField) {
 
     const edges = edgeBitFields[cornerMask];
 
+    if (edges === 0) continue;
+
     let edgeCount = 0;
     let dx = 0;
     let dy = 0;
@@ -390,8 +392,6 @@ function getTouchPointerPosition(e) {
 
 function updateEyeRotation(pointerPosition) {
   if (!lastPointerPosition) return;
-
-  console.log(pointerPosition, lastPointerPosition);
 
   const coefficient = 5;
 
