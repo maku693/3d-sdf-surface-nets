@@ -108,9 +108,10 @@ export function getGeometryData(distanceField) {
       }
     }
 
-    const edges = edgeBitFields[cornerMask];
+    // skip voxel that has no positive corners
+    if (cornerMask === 0b11111111) continue;
 
-    if (edges === 0) continue;
+    const edges = edgeBitFields[cornerMask];
 
     let edgeCount = 0;
     let dx = 0;
