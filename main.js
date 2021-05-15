@@ -339,10 +339,11 @@ const model = mat4.fromTranslation(mat4.create(), translation);
 const eye = [0, 0, distanceField.depth];
 const center = [0, 0, 0];
 const up = [0, 1, 0];
-const rotation = { x: 0, y: 0 };
+const eyeRotation = { x: 0, y: 0 };
+let eyeDistance = 0;
 
 const fovy = (60 / 180) * Math.PI;
-const near = 0.1;
+const near = 0.001;
 const far = 1000;
 
 function render(timestamp) {
@@ -352,8 +353,9 @@ function render(timestamp) {
   gl.viewport(0, 0, canvas.width, canvas.height);
 
   const view = mat4.lookAt(mat4.create(), eye, center, up);
-  mat4.rotateX(view, view, rotation.x);
-  mat4.rotateY(view, view, rotation.y);
+  mat4.translate(view, view, [0, 0, eyeDistance]);
+  mat4.rotateX(view, view, eyeRotation.x);
+  mat4.rotateY(view, view, eyeRotation.y);
 
   const aspect = canvas.width / canvas.height;
   const projection = mat4.perspective(mat4.create(), fovy, aspect, near, far);
@@ -387,14 +389,22 @@ canvas.addEventListener("pointermove", (e) => {
   const coefficient = 5;
 
   const movementY = e.clientY - lastPointerEvent.clientY;
-  rotation.x += (movementY / e.target.clientHeight) * coefficient;
-  rotation.x = Math.max(Math.PI * -0.5, rotation.x);
-  rotation.x = Math.min(Math.PI * 0.5, rotation.x);
+  eyeRotation.x += (movementY / e.target.clientHeight) * coefficient;
+  eyeRotation.x = Math.max(Math.PI * -0.5, eyeRotation.x);
+  eyeRotation.x = Math.min(Math.PI * 0.5, eyeRotation.x);
 
   const movementX = e.clientX - lastPointerEvent.clientX;
-  rotation.y += (movementX / e.target.clientWidth) * coefficient;
+  eyeRotation.y += (movementX / e.target.clientWidth) * coefficient;
 
   lastPointerEvent = e;
+});
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+
+  const coefficient = 0.1;
+
+  eyeDistance -= e.deltaY * coefficient;
+  console.log(eyeDistance);
 });
 
 requestAnimationFrame(render);
