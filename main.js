@@ -509,22 +509,32 @@ debugPanelInput.addEventListener("input", () => {
   renderDebugPanelDistanceFieldSlice();
 });
 
-const debugPanelDataCount = debugPanel.querySelector("#data-count");
-debugPanelDataCount.textContent = `${new Intl.NumberFormat("en", {
+const decimalFormat = new Intl.NumberFormat("en", {
+  style: "decimal",
+});
+const byteStandardFormat = new Intl.NumberFormat("en", {
   notation: "standard",
   style: "unit",
   unit: "byte",
   unitDisplay: "narrow",
-}).format(distanceField.data.length * 4)} (${new Intl.NumberFormat("en", {
+});
+const byteCompactFormat = new Intl.NumberFormat("en", {
   notation: "compact",
   style: "unit",
   unit: "byte",
   unitDisplay: "narrow",
-}).format(distanceField.data.length * 4)})`;
+});
 
-const debugPanelVerticesCount = debugPanel.querySelector("#vertices-count");
-debugPanelVerticesCount.textContent = new Intl.NumberFormat("en", {
-  style: "decimal",
-}).format(geometryData.vertices.length / 6);
+debugPanel.querySelector("#field-width").textContent = distanceField.width;
+debugPanel.querySelector("#field-height").textContent = distanceField.height;
+debugPanel.querySelector("#field-depth").textContent = distanceField.depth;
+
+debugPanel.querySelector("#data-count").textContent =
+  byteStandardFormat.format(distanceField.data.length * 4) +
+  ` (${byteCompactFormat.format(distanceField.data.length * 4)})`;
+
+debugPanel.querySelector("#vertices-count").textContent = decimalFormat.format(
+  geometryData.vertices.length / 6
+);
 
 renderDebugPanelDistanceFieldSlice();
