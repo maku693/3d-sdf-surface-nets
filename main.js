@@ -1,4 +1,4 @@
-import { mat4 } from "https://cdn.skypack.dev/gl-matrix";
+import { mat4, vec3 } from "https://cdn.skypack.dev/gl-matrix";
 
 class DistanceField {
   constructor(width, height, depth) {
@@ -161,42 +161,23 @@ export function getGeometryData(distanceField) {
     // position
     vertices.push(vx, vy, vz);
 
-    const nx =
-      distanceField.data[
-        x +
-          1 +
-          y * distanceField.width +
-          z * distanceField.width * distanceField.height
-      ] -
-      distanceField.data[
-        x +
-          y * distanceField.width +
-          z * distanceField.width * distanceField.height
-      ];
-    const ny =
-      distanceField.data[
-        x +
-          (y + 1) * distanceField.width +
-          z * distanceField.width * distanceField.height
-      ] -
-      distanceField.data[
-        x +
-          y * distanceField.width +
-          z * distanceField.width * distanceField.height
-      ];
-    const nz =
-      distanceField.data[
-        x +
-          y * distanceField.width +
-          (z + 1) * distanceField.width * distanceField.height
-      ] -
-      distanceField.data[
-        x +
-          y * distanceField.width +
-          z * distanceField.width * distanceField.height
-      ];
+    // x, y, z
+    const j =
+      x +
+      y * distanceField.width +
+      z * distanceField.width * distanceField.height;
+    const normal = vec3.fromValues(
+      // (x + 1, y, z) - (x, y, z)
+      distanceField.data[j + 1] - distanceField.data[j],
+      // (x, y + 1, z) - (x, y, z)
+      distanceField.data[j + distanceField.width] - distanceField.data[j],
+      // (x, y, z + 1) - (x, y, z)
+      distanceField.data[j + distanceField.width * distanceField.height] -
+        distanceField.data[j]
+    );
+    vec3.normalize(normal, normal);
     // normal
-    vertices.push(nx, ny, nz);
+    vertices.push(...normal);
 
     const quads = [];
     if (edges & 0b000000000001) {
@@ -237,7 +218,11 @@ export function getGeometryData(distanceField) {
     }
 
     for (const quad of quads) {
-      indices.push(quad[0], quad[1], quad[3], quad[0], quad[3], quad[2]);
+      if (cornerMask & 1) {
+        indices.push(quad[0], quad[3], quad[1], quad[0], quad[2], quad[3]);
+      } else {
+        indices.push(quad[0], quad[1], quad[3], quad[0], quad[3], quad[2]);
+      }
     }
   }
 
@@ -247,28 +232,28 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(3);
+const distanceField = new DistanceField(16);
 
 distanceField.drawDistanceFunction(
   merge(
-    // translate(
-    //   distanceField.width / 4,
-    //   distanceField.height / 4,
-    //   distanceField.depth / 2,
-    //   sphere(distanceField.width / 6)
-    // ),
+    translate(
+      distanceField.width / 4,
+      distanceField.height / 4,
+      distanceField.depth / 2,
+      sphere(distanceField.width / 6)
+    ),
     translate(
       distanceField.width / 2,
       distanceField.height / 2,
       distanceField.depth / 2,
       sphere(distanceField.width / 4)
+    ),
+    translate(
+      (distanceField.width / 4) * 3,
+      (distanceField.height / 4) * 3,
+      distanceField.depth / 2,
+      sphere(distanceField.width / 6)
     )
-    // translate(
-    //   (distanceField.width / 4) * 3,
-    //   (distanceField.height / 4) * 3,
-    //   distanceField.depth / 2,
-    //   sphere(distanceField.width / 6)
-    // )
   )
 );
 
