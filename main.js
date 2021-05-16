@@ -169,14 +169,26 @@ export function getGeometryData(distanceField) {
       x +
       y * distanceField.width +
       z * distanceField.width * distanceField.height;
+    const d0 = distanceField.data[j];
+    const d1 = distanceField.data[j + 1];
+    const d2 = distanceField.data[j + distanceField.width];
+    const d3 = distanceField.data[j + 1 + distanceField.width];
+    const d4 =
+      distanceField.data[j + distanceField.width * distanceField.height];
+    const d5 =
+      distanceField.data[j + 1 + distanceField.width * distanceField.height];
+    const d6 =
+      distanceField.data[
+        j + distanceField.width + distanceField.width * distanceField.height
+      ];
+    const d7 =
+      distanceField.data[
+        j + 1 + distanceField.width + distanceField.width * distanceField.height
+      ];
     const normal = [
-      // (x + 1, y, z) - (x, y, z)
-      distanceField.data[j + 1] - distanceField.data[j],
-      // (x, y + 1, z) - (x, y, z)
-      distanceField.data[j + distanceField.width] - distanceField.data[j],
-      // (x, y, z + 1) - (x, y, z)
-      distanceField.data[j + distanceField.width * distanceField.height] -
-        distanceField.data[j],
+      (d1 - d0 + d3 - d2 + d5 - d4 + d7 - d6) / 4,
+      (d2 - d0 + d3 - d1 + d6 - d4 + d7 - d5) / 4,
+      (d4 - d0 + d5 - d1 + d6 - d2 + d7 - d3) / 4,
     ];
     vec3.normalize(normal, normal);
     // normal
@@ -249,27 +261,27 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(64);
+const distanceField = new DistanceField(3);
 
 distanceField.drawDistanceFunction(
   merge(
-    translate(
-      distanceField.width / 4,
-      distanceField.height / 4,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 6)
-    ),
+    // translate(
+    //   distanceField.width / 4,
+    //   distanceField.height / 4,
+    //   distanceField.depth / 2,
+    //   sphere(distanceField.width / 6)
+    // ),
+    // translate(
+    //   (distanceField.width / 4) * 3,
+    //   (distanceField.height / 4) * 3,
+    //   distanceField.depth / 2,
+    //   sphere(distanceField.width / 6)
+    // ),
     translate(
       distanceField.width / 2,
       distanceField.height / 2,
       distanceField.depth / 2,
       sphere(distanceField.width / 4)
-    ),
-    translate(
-      (distanceField.width / 4) * 3,
-      (distanceField.height / 4) * 3,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 6)
     )
   )
 );
