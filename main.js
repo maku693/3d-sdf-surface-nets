@@ -39,7 +39,14 @@ function translate(tx, ty, tz, f) {
 
 function sphere(r) {
   return function (x, y, z) {
-    return Math.sqrt(x * x + y * y + z * z) - r;
+    return vec3.length([x, y, z]) - r;
+  };
+}
+
+function torus(rr, r) {
+  return function (x, y, z) {
+    const q = [vec2.length([x, z]) - rr, y];
+    return vec2.length(q) - r;
   };
 }
 
@@ -261,27 +268,16 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(64);
+const distanceField = new DistanceField(128);
 
 distanceField.drawDistanceFunction(
-  merge(
-    translate(
-      distanceField.width / 4,
-      distanceField.height / 4,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 6)
-    ),
-    translate(
-      (distanceField.width / 4) * 3,
-      (distanceField.height / 4) * 3,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 6)
-    ),
-    translate(
-      distanceField.width / 2,
-      distanceField.height / 2,
-      distanceField.depth / 2,
-      sphere(distanceField.width / 4)
+  translate(
+    distanceField.width / 2,
+    distanceField.height / 2,
+    distanceField.depth / 2,
+    merge(
+      sphere(distanceField.width / 4),
+      torus(distanceField.width / 4, distanceField.width / 16)
     )
   )
 );
