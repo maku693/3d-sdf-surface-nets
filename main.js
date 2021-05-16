@@ -307,11 +307,11 @@ uniform mat4 u_mvp;
 attribute vec3 a_position;
 attribute vec3 a_normal;
 
-varying vec4 v_normal;
+varying vec3 v_normal;
 
 void main() {
   gl_Position = u_mvp * vec4(a_position, 1.0);
-  v_normal = vec4(a_normal, 1.0);
+  v_normal = a_normal;
 }
 `
 );
@@ -323,10 +323,14 @@ gl.shaderSource(
   `
 precision mediump float;
 
-varying vec4 v_normal;
+varying vec3 v_normal;
 
 void main() {
-  gl_FragColor = v_normal;
+  vec3 color = vec3(1.0) * vec3(0.5) * 1.0 * dot(v_normal, normalize(vec3(1.0, 1.0, 0.0)));
+  color = max(vec3(0.0), color);
+  color = pow(color, vec3(1.0 / 2.2));
+  color += vec3(0.05);
+  gl_FragColor = vec4(color, 1.0);
 }
 `
 );
@@ -381,6 +385,7 @@ function render(timestamp) {
   mat4.translate(view, view, [0, 0, eyeDistance]);
   mat4.rotateX(view, view, eyeRotation[0]);
   mat4.rotateY(view, view, eyeRotation[1]);
+  mat4.rotateY(view, view, timestamp / 1000);
 
   const aspect = canvas.width / canvas.height;
   const projection = mat4.perspective(mat4.create(), fovy, aspect, near, far);
