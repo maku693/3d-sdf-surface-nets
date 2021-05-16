@@ -292,11 +292,11 @@ const gl = canvas.getContext("webgl", {
   preserveDrawingBuffer: false,
 });
 
-gl.enable(gl.CULL_FACE);
-gl.enable(gl.DEPTH_TEST);
-
 gl.clearColor(0, 0, 0, 1);
 gl.clearDepth(1);
+
+gl.enable(gl.CULL_FACE);
+gl.enable(gl.DEPTH_TEST);
 
 const vs = gl.createShader(gl.VERTEX_SHADER);
 gl.shaderSource(
@@ -326,10 +326,11 @@ precision mediump float;
 varying vec3 v_normal;
 
 void main() {
-  vec3 color = vec3(1.0) * vec3(0.5) * 1.0 * dot(v_normal, normalize(vec3(1.0, 1.0, 0.0)));
-  color = max(vec3(0.0), color);
+  vec3 color = vec3(0.0);
+  color += vec3(1.0) * vec3(1.0) * 0.8 * max(0.0, dot(v_normal, normalize(vec3(1.0, 1.0, 0.0))));
+  color += vec3(1.0) * vec3(0.5, 0.5, 1.0) * 0.05 * max(0.0, dot(v_normal, normalize(vec3(-1.0, -1.0, 0.0))));
+  color += vec3(1.0) * vec3(1.0) * vec3(0.01);
   color = pow(color, vec3(1.0 / 2.2));
-  color += vec3(0.05);
   gl_FragColor = vec4(color, 1.0);
 }
 `
@@ -381,11 +382,12 @@ function render(timestamp) {
 
   gl.viewport(0, 0, canvas.width, canvas.height);
 
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
   const view = mat4.lookAt(mat4.create(), eye, center, up);
   mat4.translate(view, view, [0, 0, eyeDistance]);
   mat4.rotateX(view, view, eyeRotation[0]);
   mat4.rotateY(view, view, eyeRotation[1]);
-  mat4.rotateY(view, view, timestamp / 1000);
 
   const aspect = canvas.width / canvas.height;
   const projection = mat4.perspective(mat4.create(), fovy, aspect, near, far);
