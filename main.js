@@ -14,8 +14,8 @@ class DistanceField {
     const { width, height, data } = this;
     for (let i = 0; i < data.length; i++) {
       const x = i % width;
-      const y = Math.trunc(i / width) % height;
-      const z = Math.trunc(i / width / height);
+      const y = ((i / width) | 0) % height;
+      const z = (i / width / height) | 0;
       data[i] = Math.min(
         data[i],
         // Shift the sampling point to center of the voxel
@@ -78,7 +78,6 @@ const geometryElements = 6;
 const geometryStrides = 4 * geometryElements;
 
 export function getGeometryData(distanceField) {
-  console.time("getGeometryData");
   const vertices = [];
   const gridIndices = [];
   const indices = [];
@@ -90,14 +89,14 @@ export function getGeometryData(distanceField) {
 
   for (let i = 0; i < gridVolume; i++) {
     const x = i % gridWidth;
-    const y = Math.trunc(i / gridWidth) % gridHeight;
-    const z = Math.trunc(i / gridWidth / gridHeight);
+    const y = ((i / gridWidth) | 0) % gridHeight;
+    const z = (i / gridWidth / gridHeight) | 0;
 
     let cornerMask = 0;
     for (let j = 0; j < 8; j++) {
       const u = j % 2;
-      const v = Math.trunc(j / 2) % 2;
-      const w = Math.trunc(j / 2 / 2);
+      const v = ((j / 2) | 0) % 2;
+      const w = (j / 2 / 2) | 0;
 
       const k =
         x +
@@ -124,8 +123,8 @@ export function getGeometryData(distanceField) {
 
       const c0 = cubeEdgeCornerIndices[j][0];
       const c0x = c0 % 2;
-      const c0y = Math.trunc(c0 / 2) % 2;
-      const c0z = Math.trunc(c0 / 2 / 2);
+      const c0y = ((c0 / 2) | 0) % 2;
+      const c0z = (c0 / 2 / 2) | 0;
       const k0 =
         x +
         c0x +
@@ -135,8 +134,8 @@ export function getGeometryData(distanceField) {
 
       const c1 = cubeEdgeCornerIndices[j][1];
       const c1x = c1 % 2;
-      const c1y = Math.trunc(c1 / 2) % 2;
-      const c1z = Math.trunc(c1 / 2 / 2);
+      const c1y = ((c1 / 2) | 0) % 2;
+      const c1z = (c1 / 2 / 2) | 0;
       const k1 =
         x +
         c1x +
@@ -170,15 +169,15 @@ export function getGeometryData(distanceField) {
       x +
       y * distanceField.width +
       z * distanceField.width * distanceField.height;
-    const normal = vec3.fromValues(
+    const normal = [
       // (x + 1, y, z) - (x, y, z)
       distanceField.data[j + 1] - distanceField.data[j],
       // (x, y + 1, z) - (x, y, z)
       distanceField.data[j + distanceField.width] - distanceField.data[j],
       // (x, y, z + 1) - (x, y, z)
       distanceField.data[j + distanceField.width * distanceField.height] -
-        distanceField.data[j]
-    );
+        distanceField.data[j],
+    ];
     vec3.normalize(normal, normal);
     // normal
     vertices.push(...normal);
@@ -243,8 +242,6 @@ export function getGeometryData(distanceField) {
       }
     }
   }
-
-  console.timeEnd("getGeometryData");
 
   return {
     vertices: new Float32Array(vertices),
@@ -401,11 +398,11 @@ function render(timestamp) {
 let lastPointerPosition = null;
 
 function getMousePointerPosition(e) {
-  return vec2.fromValues(e.clientX, e.clientY);
+  return [e.clientX, e.clientY];
 }
 
 function getTouchPointerPosition(e) {
-  return vec2.fromValues(e.touches[0].clientX, e.touches[0].clientY);
+  return [e.touches[0].clientX, e.touches[0].clientY];
 }
 
 function updateEyeRotation(pointerPosition) {
@@ -453,8 +450,8 @@ canvas.addEventListener("wheel", (e) => {
 let lastTouchDistance = 0;
 
 function getTouchDistance(e) {
-  const t0 = vec2.fromValues(e.touches[0].clientX, e.touches[0].clientY);
-  const t1 = vec2.fromValues(e.touches[1].clientX, e.touches[1].clientY);
+  const t0 = [e.touches[0].clientX, e.touches[0].clientY];
+  const t1 = [e.touches[1].clientX, e.touches[1].clientY];
   return vec2.distance(t0, t1);
 }
 
@@ -506,7 +503,7 @@ function renderDebugPanelDistanceFieldSlice() {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (let i = 0; i < distanceFieldSliceArea; i++) {
     const x = i % distanceField.width;
-    const y = Math.trunc(i / distanceField.width);
+    const y = (i / distanceField.width) | 0;
 
     const j =
       x +
