@@ -261,22 +261,22 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(3);
+const distanceField = new DistanceField(64);
 
 distanceField.drawDistanceFunction(
   merge(
-    // translate(
-    //   distanceField.width / 4,
-    //   distanceField.height / 4,
-    //   distanceField.depth / 2,
-    //   sphere(distanceField.width / 6)
-    // ),
-    // translate(
-    //   (distanceField.width / 4) * 3,
-    //   (distanceField.height / 4) * 3,
-    //   distanceField.depth / 2,
-    //   sphere(distanceField.width / 6)
-    // ),
+    translate(
+      distanceField.width / 4,
+      distanceField.height / 4,
+      distanceField.depth / 2,
+      sphere(distanceField.width / 6)
+    ),
+    translate(
+      (distanceField.width / 4) * 3,
+      (distanceField.height / 4) * 3,
+      distanceField.depth / 2,
+      sphere(distanceField.width / 6)
+    ),
     translate(
       distanceField.width / 2,
       distanceField.height / 2,
@@ -407,48 +407,71 @@ function render(timestamp) {
   requestAnimationFrame(render);
 }
 
-let lastPointerPosition = null;
-
-function getMousePointerPosition(e) {
-  return [e.clientX, e.clientY];
-}
-
-function getTouchPointerPosition(e) {
-  return [e.touches[0].clientX, e.touches[0].clientY];
-}
-
-function updateEyeRotation(pointerPosition) {
-  if (!lastPointerPosition) return;
-
-  const coefficient = 5;
-
-  const my = pointerPosition[1] - lastPointerPosition[1]; // lastPointerEvent.clientY;
-  eyeRotation[0] += (my / canvas.clientHeight) * coefficient;
-  // Limit rotation
-  eyeRotation[0] = Math.max(Math.PI * -0.5, eyeRotation[0]);
-  eyeRotation[0] = Math.min(Math.PI * 0.5, eyeRotation[0]);
-
-  const mx = pointerPosition[0] - lastPointerPosition[0]; // lastPointerEvent.clientX;
-  eyeRotation[1] += (mx / canvas.clientWidth) * coefficient;
-
-  lastPointerPosition = pointerPosition;
-}
-
-function updateEyeDistance(movement) {
-  eyeDistance += movement;
-}
-
-canvas.addEventListener("mousedown", (e) => {
+let pointerEvents = [];
+canvas.addEventListener("pointerdown", (e) => {
   e.preventDefault();
-
-  lastPointerPosition = getMousePointerPosition(e);
+  pointerEvents.push(e);
 });
-canvas.addEventListener("mousemove", (e) => {
+let lastTouchDistance = 0;
+canvas.addEventListener("pointermove", (e) => {
   e.preventDefault();
 
-  if (e.buttons !== 1) return;
+  if (pointerEvents.length === 1) {
+    const coefficient = 5;
 
-  updateEyeRotation(getMousePointerPosition(e));
+    const my = e.clientY - pointerEvents[0].clientY;
+    eyeRotation[0] += (my / canvas.clientHeight) * coefficient;
+    // Limit rotation
+    eyeRotation[0] = Math.max(Math.PI * -0.5, eyeRotation[0]);
+    eyeRotation[0] = Math.min(Math.PI * 0.5, eyeRotation[0]);
+
+    const mx = e.clientX - pointerEvents[0].clientX;
+    eyeRotation[1] += (mx / canvas.clientWidth) * coefficient;
+
+    pointerEvents[0] = e;
+
+    return;
+  }
+
+  if (pointerEvents.length === 2) {
+    for (let i = 0; i < pointerEvents.length; i++) {
+      if (pointerEvents[i].pointerId === e.pointerId) {
+        pointerEvents[i] = e;
+        break;
+      }
+    }
+
+    const t0 = [pointerEvents[0].clientX, pointerEvents[0].clientY];
+    const t1 = [pointerEvents[1].clientX, pointerEvents[1].clientY];
+    const touchDistance = vec2.distance(t0, t1);
+
+    if (lastTouchDistance > 0) {
+      const coefficient = 0.5;
+      eyeDistance += (touchDistance - lastTouchDistance) * coefficient;
+    }
+
+    lastTouchDistance = touchDistance;
+  }
+});
+canvas.addEventListener("pointerup", (e) => {
+  e.preventDefault();
+  lastTouchDistance = 0;
+  pointerEvents = [];
+});
+canvas.addEventListener("pointercancel", (e) => {
+  e.preventDefault();
+  lastTouchDistance = 0;
+  pointerEvents = [];
+});
+canvas.addEventListener("pointerleave", (e) => {
+  e.preventDefault();
+  lastTouchDistance = 0;
+  pointerEvents = [];
+});
+canvas.addEventListener("pointerout", (e) => {
+  e.preventDefault();
+  lastTouchDistance = 0;
+  pointerEvents = [];
 });
 
 canvas.addEventListener("wheel", (e) => {
@@ -456,42 +479,7 @@ canvas.addEventListener("wheel", (e) => {
 
   const coefficient = 0.1;
 
-  updateEyeDistance(e.deltaY * coefficient * -1);
-});
-
-let lastTouchDistance = 0;
-
-function getTouchDistance(e) {
-  const t0 = [e.touches[0].clientX, e.touches[0].clientY];
-  const t1 = [e.touches[1].clientX, e.touches[1].clientY];
-  return vec2.distance(t0, t1);
-}
-
-canvas.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-
-  if (e.touches.length === 1) {
-    lastPointerPosition = getTouchPointerPosition(e);
-  }
-  if (e.touches.length === 2) {
-    lastTouchDistance = getTouchDistance(e);
-  }
-});
-
-canvas.addEventListener("touchmove", (e) => {
-  e.preventDefault();
-
-  if (e.touches.length === 1) {
-    updateEyeRotation(getTouchPointerPosition(e));
-  }
-  if (e.touches.length === 2) {
-    const touchDistance = getTouchDistance(e);
-    const coefficient = 0.1;
-
-    updateEyeDistance((touchDistance - lastTouchDistance) * coefficient);
-
-    lastTouchDistance = touchDistance;
-  }
+  eyeDistance -= e.deltaY * coefficient;
 });
 
 requestAnimationFrame(render);
