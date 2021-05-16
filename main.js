@@ -268,7 +268,7 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(128);
+const distanceField = new DistanceField(64);
 
 distanceField.drawDistanceFunction(
   translate(
@@ -307,11 +307,11 @@ uniform mat4 u_mvp;
 attribute vec3 a_position;
 attribute vec3 a_normal;
 
-varying vec4 v_color;
+varying vec4 v_normal;
 
 void main() {
   gl_Position = u_mvp * vec4(a_position, 1.0);
-  v_color = vec4(a_normal, 1.0);
+  v_normal = vec4(a_normal, 1.0);
 }
 `
 );
@@ -323,10 +323,10 @@ gl.shaderSource(
   `
 precision mediump float;
 
-varying vec4 v_color;
+varying vec4 v_normal;
 
 void main() {
-  gl_FragColor = v_color;
+  gl_FragColor = v_normal;
 }
 `
 );
