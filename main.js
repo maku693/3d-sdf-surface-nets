@@ -307,11 +307,13 @@ uniform mat4 u_mvp;
 attribute vec3 a_position;
 attribute vec3 a_normal;
 
+varying vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_color;
 
 void main() {
   gl_Position = u_mvp * vec4(a_position, 1.0);
+  v_position = gl_Position.xyz;
   v_normal = a_normal;
   v_color = normalize(vec3(a_position));
 }
@@ -325,16 +327,43 @@ gl.shaderSource(
   `
 precision mediump float;
 
+const float PI = acos(-1);
+const float INV_PI = 1 / PI;
+
+struct Light {
+  vec3 color;
+  vec3 position;
+};
+
+varying vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_color;
 
+Light lights[2];
+vec3 environment;
+
 void main() {
-  vec3 color = v_color * vec3(1.0) * 0.8 * max(0.0, dot(v_normal, normalize(vec3(1.0, 1.0, 0.0))));
-  color += v_color * vec3(1.0) * 0.1 * max(0.0, dot(v_normal, normalize(vec3(-1.0, -1.0, 0.0))));
-  color += v_color * vec3(1.0) * vec3(0.1);
+  lights[0] = Light(vec3(0.8), vec3(1.0, 1.0, 0.0));
+  lights[1] = Light(vec3(0.1), vec3(-1.0, -1.0, 0.0));
+  environment = vec3(0.1);
+
+  vec3 color;
+  for (int i = 0; i < 2; i++) {
+    if (i == 0) {
+      color += v_color * lights[0].color * max(0.0, dot(v_normal, normalize(lights[0].position))) * INV_PI;
+    }
+    if (i == 1) {
+      color += v_color * lights[1].color * max(0.0, dot(v_normal, normalize(lights[1].position))) * INV_PI;
+    }
+  }
+  color += v_color * environment;
   color = pow(color, vec3(1.0 / 2.2));
   gl_FragColor = vec4(color, 1.0);
 }
+
+// vec3 lambert() {
+
+// }
 `
 );
 gl.compileShader(fs);
