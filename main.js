@@ -308,10 +308,12 @@ attribute vec3 a_position;
 attribute vec3 a_normal;
 
 varying vec3 v_normal;
+varying vec3 v_color;
 
 void main() {
   gl_Position = u_mvp * vec4(a_position, 1.0);
   v_normal = a_normal;
+  v_color = normalize(vec3(a_position));
 }
 `
 );
@@ -324,12 +326,12 @@ gl.shaderSource(
 precision mediump float;
 
 varying vec3 v_normal;
+varying vec3 v_color;
 
 void main() {
-  vec3 color = vec3(0.0);
-  color += vec3(1.0) * vec3(1.0) * 0.8 * max(0.0, dot(v_normal, normalize(vec3(1.0, 1.0, 0.0))));
-  color += vec3(1.0) * vec3(0.5, 0.5, 1.0) * 0.05 * max(0.0, dot(v_normal, normalize(vec3(-1.0, -1.0, 0.0))));
-  color += vec3(1.0) * vec3(1.0) * vec3(0.01);
+  vec3 color = v_color * vec3(1.0) * 0.8 * max(0.0, dot(v_normal, normalize(vec3(1.0, 1.0, 0.0))));
+  color += v_color * vec3(1.0) * 0.1 * max(0.0, dot(v_normal, normalize(vec3(-1.0, -1.0, 0.0))));
+  color += v_color * vec3(1.0) * vec3(0.1);
   color = pow(color, vec3(1.0 / 2.2));
   gl_FragColor = vec4(color, 1.0);
 }
