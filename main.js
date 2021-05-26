@@ -315,7 +315,7 @@ void main() {
   gl_Position = u_mvp * vec4(a_position, 1.0);
   v_position = gl_Position.xyz;
   v_normal = a_normal;
-  v_color = normalize(vec3(a_position));
+  v_color = vec3(normalize(a_position));
 }
 `
 );
@@ -327,8 +327,8 @@ gl.shaderSource(
   `
 precision mediump float;
 
-const float PI = acos(-1);
-const float INV_PI = 1 / PI;
+const float M_PI_F = acos(-1.0);
+const float M_1_PI_F = 1.0 / M_PI_F;
 
 struct Light {
   vec3 color;
@@ -343,17 +343,17 @@ Light lights[2];
 vec3 environment;
 
 void main() {
-  lights[0] = Light(vec3(0.8), vec3(1.0, 1.0, 0.0));
+  lights[0] = Light(vec3(0.9), vec3(1.0, 1.0, 0.0));
   lights[1] = Light(vec3(0.1), vec3(-1.0, -1.0, 0.0));
   environment = vec3(0.1);
 
   vec3 color;
   for (int i = 0; i < 2; i++) {
     if (i == 0) {
-      color += v_color * lights[0].color * max(0.0, dot(v_normal, normalize(lights[0].position))) * INV_PI;
+      color += v_color * lights[0].color * max(0.0, dot(v_normal, normalize(lights[0].position))) * M_1_PI_F;
     }
     if (i == 1) {
-      color += v_color * lights[1].color * max(0.0, dot(v_normal, normalize(lights[1].position))) * INV_PI;
+      color += v_color * lights[1].color * max(0.0, dot(v_normal, normalize(lights[1].position))) * M_1_PI_F;
     }
   }
   color += v_color * environment;
