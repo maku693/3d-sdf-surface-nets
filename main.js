@@ -163,6 +163,8 @@ export function getGeometryData(distanceField) {
     dy /= edgeCount;
     dz /= edgeCount;
 
+    // build vertex buffer
+
     // Shift vertex to center of the grid
     const vx = x + 0.5 + dx;
     const vy = y + 0.5 + dy;
@@ -239,6 +241,7 @@ export function getGeometryData(distanceField) {
       ]);
     }
 
+    // build index buffer
     for (let j = 0; j < quads.length; j++) {
       if (cornerMask & 1) {
         indices.push(
