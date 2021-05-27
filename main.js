@@ -195,9 +195,9 @@ export function getGeometryData(distanceField) {
         j + 1 + distanceField.width + distanceField.width * distanceField.height
       ];
     const normal = [
-      (d1 - d0 + d3 - d2 + d5 - d4 + d7 - d6) / 4,
-      (d2 - d0 + d3 - d1 + d6 - d4 + d7 - d5) / 4,
-      (d4 - d0 + d5 - d1 + d6 - d2 + d7 - d3) / 4,
+      d1 - d0 + d3 - d2 + d5 - d4 + d7 - d6,
+      d2 - d0 + d3 - d1 + d6 - d4 + d7 - d5,
+      d4 - d0 + d5 - d1 + d6 - d2 + d7 - d3,
     ];
     vec3.normalize(normal, normal);
     // normal
@@ -279,8 +279,8 @@ distanceField.drawDistanceFunction(
     distanceField.height / 2,
     distanceField.depth / 2,
     merge(
-      sphere(distanceField.width / 4),
-      torus(distanceField.width / 4, distanceField.width / 16)
+      torus(distanceField.width / 4, distanceField.width / 16),
+      sphere(distanceField.width / 4)
     )
   )
 );
@@ -322,7 +322,7 @@ void main() {
   gl_Position = u_projection * u_view * position;
   v_position = position.xyz / position.w;
   v_normal = a_normal;
-  v_diffuse = vec3(normalize(a_position));
+  v_diffuse = normalize(a_position);
   v_specular = vec3(1.0);
 }
 `
