@@ -317,7 +317,7 @@ varying vec3 v_specular;
 void main() {
   vec4 position = u_model * vec4(a_position, 1.0);
   gl_Position = u_projection * u_view * position;
-  v_position = position.xyz;
+  v_position = position.xyz / position.w;
   v_normal = a_normal;
   v_diffuse = vec3(normalize(a_position));
   v_specular = vec3(1.0);
@@ -357,15 +357,18 @@ Light lights[lightCount];
 
 vec3 lambert(Light light) {
   vec3 l = light.position - v_position;
-  return v_diffuse * max(0.0, dot(v_normal, normalize(l))) * light.color * light.power / dot(l, l);
+  return v_diffuse * max(0.0, dot(v_normal, normalize(l))) * light.color *
+    light.power / dot(l, l);
 }
 
 vec3 blinnPhong(Light light) {
-  vec3 l = light.position - v_position;
-  vec3 e = u_eye - v_position;
+  vec3 denormalizedL = light.position - v_position;
+  vec3 l = normalize(denormalizedL);
+  vec3 e = normalize(u_eye - v_position);
   vec3 h = normalize(l + e);
   float nDotH = max(0.0, dot(v_normal, h));
-  return v_specular * pow(nDotH, shininess) * light.color * light.power / dot(l, l);
+  return v_specular * pow(nDotH, shininess) * light.color * light.power /
+    dot(denormalizedL, denormalizedL);
 }
 
 void main() {
