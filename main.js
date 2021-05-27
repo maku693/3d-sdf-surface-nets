@@ -345,9 +345,6 @@ uniform vec3 u_eye;
 
 const vec3 environment = vec3(0.1);
 
-const float M_PI_F = acos(-1.0);
-const float M_1_PI_F = 1.0 / M_PI_F;
-
 varying vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_diffuse;
