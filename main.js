@@ -345,7 +345,7 @@ uniform vec3 u_eye;
 
 const vec3 environment = vec3(0.1);
 
-varying vec3 v_position;
+varying highp vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_diffuse;
 varying vec3 v_specular;
