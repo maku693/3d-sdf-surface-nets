@@ -356,9 +356,11 @@ const int lightCount = 2;
 Light lights[lightCount];
 
 vec3 lambert(Light light) {
-  vec3 l = light.position - v_position;
-  return v_diffuse * max(0.0, dot(v_normal, normalize(l))) * light.color *
-    light.power / dot(l, l);
+  vec3 denormalizedL = light.position - v_position;
+  vec3 l = normalize(denormalizedL);
+  float d = max(0.0, dot(v_normal, l));
+  return v_diffuse * d * light.color * light.power /
+    dot(denormalizedL, denormalizedL);
 }
 
 vec3 blinnPhong(Light light) {
@@ -366,8 +368,8 @@ vec3 blinnPhong(Light light) {
   vec3 l = normalize(denormalizedL);
   vec3 e = normalize(u_eye - v_position);
   vec3 h = normalize(l + e);
-  float nDotH = max(0.0, dot(v_normal, h));
-  return v_specular * pow(nDotH, shininess) * light.color * light.power /
+  float s = pow(max(0.0, dot(v_normal, h)), shininess);
+  return v_specular * s * light.color * light.power /
     dot(denormalizedL, denormalizedL);
 }
 
