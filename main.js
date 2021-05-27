@@ -352,7 +352,8 @@ varying vec3 v_specular;
 
 const float shininess = 60.0;
 
-Light lights[2];
+const int lightCount = 2;
+Light lights[lightCount];
 
 vec3 lambert(Light light) {
   vec3 l = light.position - v_position;
@@ -372,7 +373,7 @@ void main() {
   lights[1] = Light(vec3(1.0), 1000.0, vec3(-64.0, -64.0, -64.0));
 
   vec3 color;
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < lightCount; i++) {
     if (i == 0) {
       color += lambert(lights[0]) + blinnPhong(lights[0]);
     }
