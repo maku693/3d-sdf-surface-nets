@@ -312,6 +312,7 @@ attribute vec3 a_normal;
 varying vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_diffuse;
+varying vec3 v_specular;
 
 void main() {
   vec4 position = u_model * vec4(a_position, 1.0);
@@ -319,6 +320,7 @@ void main() {
   v_position = position.xyz;
   v_normal = a_normal;
   v_diffuse = vec3(normalize(a_position));
+  v_specular = vec3(1.0);
 }
 `
 );
@@ -346,8 +348,8 @@ const float M_1_PI_F = 1.0 / M_PI_F;
 varying vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_diffuse;
+varying vec3 v_specular;
 
-const vec3 specular = vec3(1.0);
 const float shininess = 60.0;
 
 Light lights[2];
@@ -362,7 +364,7 @@ vec3 blinnPhong(Light light) {
   vec3 e = u_eye - v_position;
   vec3 h = normalize(l + e);
   float nDotH = max(0.0, dot(v_normal, h));
-  return specular * pow(nDotH, shininess) * light.color * light.power / dot(l, l);
+  return v_specular * pow(nDotH, shininess) * light.color * light.power / dot(l, l);
 }
 
 void main() {
