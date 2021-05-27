@@ -365,12 +365,14 @@ vec3 lambert(Light light) {
 
 vec3 blinnPhong(Light light) {
   vec3 denormalizedL = light.position - v_position;
+  float squaredLengthL = dot(denormalizedL, denormalizedL);
+  float lightIlluminance = light.power / squaredLengthL;
   vec3 l = normalize(denormalizedL);
   vec3 e = normalize(u_eye - v_position);
   vec3 h = normalize(l + e);
+  float d = max(0.0, dot(v_normal, l));
   float s = pow(max(0.0, dot(v_normal, h)), shininess);
-  return v_specular * s * light.color * light.power /
-    dot(denormalizedL, denormalizedL);
+  return (v_specular * s + v_diffuse * d) * light.color * lightIlluminance;
 }
 
 void main() {
@@ -380,10 +382,10 @@ void main() {
   vec3 color;
   for (int i = 0; i < lightCount; i++) {
     if (i == 0) {
-      color += lambert(lights[0]) + blinnPhong(lights[0]);
+      color += blinnPhong(lights[0]);
     }
     if (i == 1) {
-      color += lambert(lights[1]) + blinnPhong(lights[1]);
+      color += blinnPhong(lights[1]);
     }
   }
   color += v_diffuse * environment;
