@@ -302,20 +302,23 @@ const vs = gl.createShader(gl.VERTEX_SHADER);
 gl.shaderSource(
   vs,
   `
-uniform mat4 u_mvp;
+uniform mat4 u_model;
+uniform mat4 u_view;
+uniform mat4 u_projection;
 
 attribute vec3 a_position;
 attribute vec3 a_normal;
 
 varying vec3 v_position;
 varying vec3 v_normal;
-varying vec3 v_color;
+varying vec3 v_diffuse;
 
 void main() {
-  gl_Position = u_mvp * vec4(a_position, 1.0);
-  v_position = gl_Position.xyz;
+  vec4 position = u_model * vec4(a_position, 1.0);
+  gl_Position = u_projection * u_view * position;
+  v_position = position.xyz;
   v_normal = a_normal;
-  v_color = vec3(normalize(a_position));
+  v_diffuse = vec3(normalize(a_position));
 }
 `
 );
@@ -327,43 +330,58 @@ gl.shaderSource(
   `
 precision mediump float;
 
-const float M_PI_F = acos(-1.0);
-const float M_1_PI_F = 1.0 / M_PI_F;
-
 struct Light {
   vec3 color;
+  float power;
   vec3 position;
 };
 
+uniform vec3 u_eye;
+
+const vec3 environment = vec3(0.1);
+
+const float M_PI_F = acos(-1.0);
+const float M_1_PI_F = 1.0 / M_PI_F;
+
 varying vec3 v_position;
 varying vec3 v_normal;
-varying vec3 v_color;
+varying vec3 v_diffuse;
+
+const vec3 specular = vec3(1.0);
+const float shininess = 60.0;
 
 Light lights[2];
-vec3 environment;
+
+vec3 lambert(Light light) {
+  vec3 l = light.position - v_position;
+  return v_diffuse * max(0.0, dot(v_normal, normalize(l))) * light.color * light.power / dot(l, l);
+}
+
+vec3 blinnPhong(Light light) {
+  vec3 l = light.position - v_position;
+  vec3 e = u_eye - v_position;
+  vec3 h = normalize(l + e);
+  float nDotH = max(0.0, dot(v_normal, h));
+  return specular * pow(nDotH, shininess) * light.color * light.power / dot(l, l);
+}
 
 void main() {
-  lights[0] = Light(vec3(0.9), vec3(1.0, 1.0, 0.0));
-  lights[1] = Light(vec3(0.1), vec3(-1.0, -1.0, 0.0));
-  environment = vec3(0.1);
+  lights[0] = Light(vec3(1.0), 10000.0, vec3(64.0, 64.0, 64.0));
+  lights[1] = Light(vec3(1.0), 1000.0, vec3(-64.0, -64.0, -64.0));
 
   vec3 color;
   for (int i = 0; i < 2; i++) {
     if (i == 0) {
-      color += v_color * lights[0].color * max(0.0, dot(v_normal, normalize(lights[0].position))) * M_1_PI_F;
+      color += lambert(lights[0]) + blinnPhong(lights[0]);
     }
     if (i == 1) {
-      color += v_color * lights[1].color * max(0.0, dot(v_normal, normalize(lights[1].position))) * M_1_PI_F;
+      color += lambert(lights[1]) + blinnPhong(lights[1]);
     }
   }
-  color += v_color * environment;
+  color += v_diffuse * environment;
   color = pow(color, vec3(1.0 / 2.2));
   gl_FragColor = vec4(color, 1.0);
 }
-
-// vec3 lambert() {
-
-// }
 `
 );
 gl.compileShader(fs);
@@ -374,7 +392,10 @@ gl.attachShader(program, vs);
 gl.linkProgram(program);
 gl.useProgram(program);
 
-const u_mvp = gl.getUniformLocation(program, "u_mvp");
+const u_model = gl.getUniformLocation(program, "u_model");
+const u_view = gl.getUniformLocation(program, "u_view");
+const u_projection = gl.getUniformLocation(program, "u_projection");
+const u_eye = gl.getUniformLocation(program, "u_eye");
 const a_position = gl.getAttribLocation(program, "a_position");
 const a_normal = gl.getAttribLocation(program, "a_normal");
 
@@ -397,11 +418,10 @@ const translation = [
 ];
 const model = mat4.fromTranslation(mat4.create(), translation);
 
-const eye = [0, 0, distanceField.depth];
+const eyeRotation = [0, 0];
+let eyeDistance = distanceField.depth;
 const center = [0, 0, 0];
 const up = [0, 1, 0];
-const eyeRotation = [0, 0];
-let eyeDistance = 0;
 
 const fovy = (60 / 180) * Math.PI;
 const near = 0.001;
@@ -415,10 +435,10 @@ function render(timestamp) {
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+  const eye = [0, 0, eyeDistance];
+  vec3.rotateX(eye, eye, center, eyeRotation[0]);
+  vec3.rotateY(eye, eye, center, eyeRotation[1]);
   const view = mat4.lookAt(mat4.create(), eye, center, up);
-  mat4.translate(view, view, [0, 0, eyeDistance]);
-  mat4.rotateX(view, view, eyeRotation[0]);
-  mat4.rotateY(view, view, eyeRotation[1]);
 
   const aspect = canvas.width / canvas.height;
   const projection = mat4.perspective(mat4.create(), fovy, aspect, near, far);
@@ -427,7 +447,10 @@ function render(timestamp) {
   mat4.multiply(mvp, view, model);
   mat4.multiply(mvp, projection, mvp);
 
-  gl.uniformMatrix4fv(u_mvp, false, mvp);
+  gl.uniformMatrix4fv(u_model, false, model);
+  gl.uniformMatrix4fv(u_view, false, view);
+  gl.uniformMatrix4fv(u_projection, false, projection);
+  gl.uniform3fv(u_eye, eye);
 
   gl.drawElements(
     gl.TRIANGLES,
@@ -454,13 +477,14 @@ canvas.addEventListener("pointermove", (e) => {
     const coefficient = 5;
 
     const my = e.clientY - pointerEvents[0].clientY;
-    eyeRotation[0] += (my / canvas.clientHeight) * coefficient;
+    eyeRotation[0] += (my / canvas.clientHeight) * coefficient * -1;
     // Limit rotation
     eyeRotation[0] = Math.max(Math.PI * -0.5, eyeRotation[0]);
     eyeRotation[0] = Math.min(Math.PI * 0.5, eyeRotation[0]);
 
     const mx = e.clientX - pointerEvents[0].clientX;
-    eyeRotation[1] += (mx / canvas.clientWidth) * coefficient;
+    eyeRotation[1] += (mx / canvas.clientWidth) * coefficient * -1;
+    eyeRotation[1] %= Math.PI * 2;
 
     pointerEvents[0] = e;
 
@@ -481,7 +505,7 @@ canvas.addEventListener("pointermove", (e) => {
 
     if (lastTouchDistance > 0) {
       const coefficient = 0.5;
-      eyeDistance += (touchDistance - lastTouchDistance) * coefficient;
+      eyeDistance -= (touchDistance - lastTouchDistance) * coefficient;
     }
 
     lastTouchDistance = touchDistance;
@@ -513,7 +537,7 @@ canvas.addEventListener("wheel", (e) => {
 
   const coefficient = 0.1;
 
-  eyeDistance -= e.deltaY * coefficient;
+  eyeDistance += e.deltaY * coefficient;
 });
 
 requestAnimationFrame(render);
