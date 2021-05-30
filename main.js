@@ -271,7 +271,7 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(64);
+const distanceField = new DistanceField(128);
 
 distanceField.drawDistanceFunction(
   translate(
@@ -315,7 +315,7 @@ attribute vec3 a_normal;
 varying vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_diffuse;
-varying vec3 v_specular;
+varying float v_roughness;
 
 void main() {
   vec4 position = u_model * vec4(a_position, 1.0);
@@ -323,7 +323,7 @@ void main() {
   v_position = position.xyz / position.w;
   v_normal = a_normal;
   v_diffuse = normalize(a_position);
-  v_specular = vec3(1.0);
+  v_roughness = 0.2;
 }
 `
 );
@@ -335,6 +335,9 @@ gl.shaderSource(
   `
 precision mediump float;
 
+const float M_PI = acos(-1.0);
+const float M_1_PI = 1.0 / M_PI;
+
 struct Light {
   vec3 color;
   float power;
@@ -342,50 +345,69 @@ struct Light {
 };
 
 uniform vec3 u_eye;
-
 const vec3 environment = vec3(0.1);
+const int lightCount = 2;
+Light lights[2];
 
 varying highp vec3 v_position;
 varying vec3 v_normal;
 varying vec3 v_diffuse;
-varying vec3 v_specular;
+varying float v_roughness;
 
-const float shininess = 60.0;
+const float ior = 1.5;
 
-const int lightCount = 2;
-Light lights[lightCount];
-
-vec3 lambert(Light light) {
-  vec3 denormalizedL = light.position - v_position;
-  vec3 l = normalize(denormalizedL);
-  float d = max(0.0, dot(v_normal, l));
-  return v_diffuse * d * light.color * light.power /
-    dot(denormalizedL, denormalizedL);
+float pow2(float f) {
+  return f * f;
 }
 
-vec3 blinnPhong(Light light) {
+float pow5(float f) {
+  return f * f * f * f * f;
+}
+
+vec3 pbs(Light light) {
   vec3 denormalizedL = light.position - v_position;
   float squaredLengthL = dot(denormalizedL, denormalizedL);
   float lightIlluminance = light.power / squaredLengthL;
   vec3 l = normalize(denormalizedL);
-  vec3 e = normalize(u_eye - v_position);
-  vec3 h = normalize(l + e);
-  float d = max(0.0, dot(v_normal, l));
-  float s = pow(max(0.0, dot(v_normal, h)), shininess);
-  return (v_specular * s + v_diffuse * d) * light.color * lightIlluminance;
+  vec3 v = normalize(u_eye - v_position);
+  vec3 h = normalize(l + v);
+  float nDotL = dot(v_normal, l);
+  float nDotV = dot(v_normal, v);
+  float nDotH = dot(v_normal, h);
+  float hDotL = dot(h, l);
+  float hDotV = dot(h, v);
+  float alpha = pow2(v_roughness);
+  float alphaPow2 = pow2(alpha);
+
+  vec3 diffuse = v_diffuse * max(0.0, nDotL) * M_1_PI;
+
+  float V =
+    max(0.0, hDotL) /
+    (abs(nDotL) + sqrt(alphaPow2 + (1.0 - alphaPow2) * pow2(nDotL))) *
+    max(0.0, hDotV) /
+    (abs(nDotV) + sqrt(alphaPow2 + (1.0 - alphaPow2) * pow2(nDotV)));
+  float D =
+    alphaPow2 * max(0.0, nDotH) /
+    (M_PI * pow2(pow2(nDotH) * (alphaPow2 - 1.0) + 1.0));
+  vec3 specular = vec3(D * V);
+
+  float f0 = pow2((1.0 - ior) / (1.0 + ior));
+  float fresnel = f0 + (1.0 - f0) * pow5(1.0 - abs(hDotV));
+
+  return mix(diffuse, specular, fresnel);
 }
 
 void main() {
-  lights[0] = Light(vec3(1.0), 10000.0, vec3(64.0, 64.0, 64.0));
+  lights[0] = Light(vec3(1.0), 100000.0, vec3(64.0, 64.0, 64.0));
   lights[1] = Light(vec3(1.0), 1000.0, vec3(-64.0, -64.0, -64.0));
 
   vec3 color;
   for (int i = 0; i < lightCount; i++) {
     if (i == 0) {
-      color += blinnPhong(lights[0]);
+      color += pbs(lights[0]);
     }
     if (i == 1) {
-      color += blinnPhong(lights[1]);
+      color += pbs(lights[1]);
     }
   }
   color += v_diffuse * environment;
