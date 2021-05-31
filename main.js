@@ -81,8 +81,8 @@ const edgeBitFields = new Array(256);
   }
 }
 
-const geometryElements = 6;
-const geometryStrides = 4 * geometryElements;
+const geometryElements = 3 + 3; // position, normal
+const geometryStrides = geometryElements * 4; // 4 bytes per element
 
 export function getGeometryData(distanceField) {
   const vertices = [];
@@ -115,8 +115,8 @@ export function getGeometryData(distanceField) {
       }
     }
 
-    // skip voxel that has no positive corners
-    if (cornerMask === 0b11111111) continue;
+    // skip voxel that has no positive or negative corners
+    if (cornerMask === 0 || cornerMask === 0b11111111) continue;
 
     const edges = edgeBitFields[cornerMask];
 
