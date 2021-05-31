@@ -86,7 +86,7 @@ const geometryStrides = geometryElements * 4; // 4 bytes per element
 
 export function getGeometryData(distanceField) {
   const vertices = [];
-  const gridIndices = [];
+  const gridIndices = {};
   const indices = [];
 
   const gridWidth = distanceField.width - 1;
@@ -271,7 +271,7 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(128);
+const distanceField = new DistanceField(64);
 
 distanceField.drawDistanceFunction(
   translate(
@@ -322,7 +322,7 @@ void main() {
   gl_Position = u_projection * u_view * position;
   v_position = position.xyz / position.w;
   v_normal = a_normal;
-  v_diffuse = normalize(a_position);
+  v_diffuse = vec3(0.5);
   v_roughness = 0.2;
 }
 `
@@ -345,7 +345,6 @@ struct Light {
 };
 
 uniform vec3 u_eye;
-const vec3 environment = vec3(0.1);
 const int lightCount = 2;
 Light lights[2];
 
@@ -394,12 +393,12 @@ vec3 pbs(Light light) {
   float f0 = pow2((1.0 - ior) / (1.0 + ior));
   float fresnel = f0 + (1.0 - f0) * pow5(1.0 - abs(hDotV));
 
-  return mix(diffuse, specular, fresnel);
+  return mix(diffuse, specular, fresnel) * lightIlluminance;
 }
 
 void main() {
-  lights[0] = Light(vec3(1.0), 100000.0, vec3(64.0, 64.0, 64.0));
-  lights[1] = Light(vec3(1.0), 1000.0, vec3(-64.0, -64.0, -64.0));
+  lights[0] = Light(vec3(1.0), 50000.0, vec3(64.0, 64.0, 64.0));
+  lights[1] = Light(vec3(1.0), 50000.0, vec3(-64.0, -64.0, -64.0));
 
   vec3 color;
   for (int i = 0; i < lightCount; i++) {
@@ -410,8 +409,7 @@ void main() {
       color += pbs(lights[1]);
     }
   }
-  color += v_diffuse * environment;
-  color = pow(color, vec3(1.0 / 2.2));
+  // color = pow(color, vec3(1.0 / 2.2));
   gl_FragColor = vec4(color, 1.0);
 }
 `
