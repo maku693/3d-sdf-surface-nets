@@ -333,7 +333,7 @@ void main() {
   v_position = position.xyz / position.w;
   v_normal = a_normal;
   v_diffuse = vec3(0.5);
-  v_roughness = 0.2;
+  v_roughness = 0.5;
 }
 `
 );
@@ -403,12 +403,12 @@ vec3 pbs(Light light) {
   float f0 = pow2((1.0 - ior) / (1.0 + ior));
   float fresnel = f0 + (1.0 - f0) * pow5(1.0 - abs(hDotV));
 
-  return mix(diffuse, specular, fresnel) * lightIlluminance;
+  return mix(diffuse, specular, fresnel) * light.color * lightIlluminance;
 }
 
 void main() {
-  lights[0] = Light(vec3(1.0), 50000.0, vec3(64.0, 64.0, 64.0));
-  lights[1] = Light(vec3(1.0), 50000.0, vec3(-64.0, -64.0, -64.0));
+  lights[0] = Light(vec3(1.0), 10000.0, vec3(64.0, 64.0, 64.0));
+  lights[1] = Light(vec3(1.0), 10000.0, vec3(-64.0, -64.0, -64.0));
 
   vec3 color;
   for (int i = 0; i < lightCount; i++) {
@@ -419,7 +419,7 @@ void main() {
       color += pbs(lights[1]);
     }
   }
-  // color = pow(color, vec3(1.0 / 2.2));
+  color = pow(color, vec3(1.0 / 2.2));
   gl_FragColor = vec4(color, 1.0);
 }
 `
