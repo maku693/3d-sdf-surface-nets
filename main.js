@@ -159,20 +159,19 @@ export function getGeometryData(distanceField) {
 
     gridIndices[i] = vertices.length / geometryElements;
 
+    // build vertex buffer
     dx /= edgeCount;
     dy /= edgeCount;
     dz /= edgeCount;
-
-    // build vertex buffer
 
     // Shift vertex to center of the grid
     const vx = x + 0.5 + dx;
     const vy = y + 0.5 + dy;
     const vz = z + 0.5 + dz;
 
-    // position
     vertices.push(vx, vy, vz);
 
+    // normal
     // x, y, z
     const j =
       x +
@@ -200,7 +199,6 @@ export function getGeometryData(distanceField) {
       d4 - d0 + d5 - d1 + d6 - d2 + d7 - d3,
     ];
     vec3.normalize(normal, normal);
-    // normal
     vertices.push(...normal);
 
     const quads = [];
@@ -241,26 +239,38 @@ export function getGeometryData(distanceField) {
       ]);
     }
 
+    if (quads.length === 0) continue;
+
     // build index buffer
     for (let j = 0; j < quads.length; j++) {
+      const q = quads[j];
+      const k0 = q[0] * geometryElements;
+      const k1 = q[1] * geometryElements;
+      const k2 = q[2] * geometryElements;
+      const k3 = q[3] * geometryElements;
+      const shorterDiagonal =
+        vec3.distance(
+          [vertices[k0], vertices[k0 + 1], vertices[k0 + 2]],
+          [vertices[k3], vertices[k3 + 1], vertices[k3 + 2]]
+        ) <
+        vec3.distance(
+          [vertices[k1], vertices[k1 + 1], vertices[k1 + 2]],
+          [vertices[k2], vertices[k2 + 1], vertices[k2 + 2]]
+        )
+          ? 0
+          : 1;
       if (cornerMask & 1) {
-        indices.push(
-          quads[j][0],
-          quads[j][3],
-          quads[j][1],
-          quads[j][0],
-          quads[j][2],
-          quads[j][3]
-        );
+        if (shorterDiagonal === 0) {
+          indices.push(q[0], q[3], q[1], q[0], q[2], q[3]);
+        } else {
+          indices.push(q[0], q[2], q[1], q[1], q[2], q[3]);
+        }
       } else {
-        indices.push(
-          quads[j][0],
-          quads[j][1],
-          quads[j][3],
-          quads[j][0],
-          quads[j][3],
-          quads[j][2]
-        );
+        if (shorterDiagonal === 0) {
+          indices.push(q[0], q[1], q[3], q[0], q[3], q[2]);
+        } else {
+          indices.push(q[0], q[1], q[2], q[1], q[3], q[2]);
+        }
       }
     }
   }
