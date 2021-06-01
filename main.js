@@ -281,7 +281,7 @@ export function getGeometryData(distanceField) {
   };
 }
 
-const distanceField = new DistanceField(64);
+const distanceField = new DistanceField(32);
 
 distanceField.drawDistanceFunction(
   translate(
@@ -289,7 +289,7 @@ distanceField.drawDistanceFunction(
     distanceField.height / 2,
     distanceField.depth / 2,
     merge(
-      torus(distanceField.width / 4, distanceField.width / 16),
+      // torus(distanceField.width / 4, distanceField.width / 16),
       sphere(distanceField.width / 4)
     )
   )
@@ -441,7 +441,7 @@ const a_normal = gl.getAttribLocation(program, "a_normal");
 
 const vertexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, geometryData.vertices, gl.DYNAMIC_DRAW);
+gl.bufferData(gl.ARRAY_BUFFER, geometryData.vertices, gl.STATIC_DRAW);
 gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, geometryStrides, 0);
 gl.enableVertexAttribArray(a_position);
 gl.vertexAttribPointer(a_normal, 3, gl.FLOAT, true, geometryStrides, 12);
@@ -449,7 +449,7 @@ gl.enableVertexAttribArray(a_normal);
 
 const indexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometryData.indices, gl.DYNAMIC_DRAW);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometryData.indices, gl.STATIC_DRAW);
 
 const translation = [
   distanceField.width * -0.5,
