@@ -1,301 +1,21 @@
 import { mat4, vec3, vec2 } from "https://cdn.skypack.dev/gl-matrix";
+import { sphere, draw } from "./distance-field.js";
+import { getGeometryData } from "./surface-nets.js";
 
-class DistanceField {
-  constructor(width, height, depth) {
-    this.width = width;
-    this.height = height || width;
-    this.depth = depth || width;
-    this.data = new Float32Array(this.width * this.height * this.depth).fill(
-      Infinity
-    );
-  }
+const width = 32;
+const height = width;
+const depth = width;
+const data = new Float32Array(width * height * depth).fill(Infinity);
 
-  drawDistanceFunction(f) {
-    const { width, height, data } = this;
-    for (let i = 0; i < data.length; i++) {
-      const x = i % width;
-      const y = ((i / width) | 0) % height;
-      const z = (i / width / height) | 0;
-      data[i] = Math.min(
-        data[i],
-        // Shift the sampling point to center of the voxel
-        f(x + 0.5, y + 0.5, z + 0.5)
-      );
-    }
-  }
-}
-
-function merge(...ff) {
-  return function (x, y, z) {
-    return Math.min(...ff.map((f) => f(x, y, z)));
-  };
-}
-
-function translate(tx, ty, tz, f) {
-  return function (x, y, z) {
-    return f(x - tx, y - ty, z - tz);
-  };
-}
-
-function sphere(r) {
-  return function (x, y, z) {
-    return vec3.length([x, y, z]) - r;
-  };
-}
-
-function torus(rr, r) {
-  return function (x, y, z) {
-    const q = [vec2.length([x, z]) - rr, y];
-    return vec2.length(q) - r;
-  };
-}
-
-const cubeEdgeCornerIndices = [
-  [0, 1],
-  [0, 2],
-  [1, 3],
-  [2, 3],
-  [0, 4],
-  [1, 5],
-  [2, 6],
-  [3, 7],
-  [4, 5],
-  [4, 6],
-  [5, 7],
-  [6, 7],
-];
-
-const edgeBitFields = new Array(256);
-{
-  for (let cornerBits = 0; cornerBits < edgeBitFields.length; cornerBits++) {
-    let field = 0;
-    for (let j = 0; j < cubeEdgeCornerIndices.length; j++) {
-      const cornerBitsA = 1 << cubeEdgeCornerIndices[j][0];
-      const cornerBitsB = 1 << cubeEdgeCornerIndices[j][1];
-      const isCornerInVolumeA = (cornerBits & cornerBitsA) !== 0;
-      const isCornerInVolumeB = (cornerBits & cornerBitsB) !== 0;
-      const isOnlyOneOfCornerInVolume = isCornerInVolumeA !== isCornerInVolumeB;
-      field |= isOnlyOneOfCornerInVolume << j;
-    }
-    edgeBitFields[cornerBits] = field;
-  }
-}
-
-const geometryElements = 3 + 3; // position, normal
-const geometryStrides = geometryElements * 4; // 4 bytes per element
-
-export function getGeometryData(distanceField) {
-  const vertices = [];
-  const gridIndices = {};
-  const indices = [];
-
-  const gridWidth = distanceField.width - 1;
-  const gridHeight = distanceField.height - 1;
-  const gridDepth = distanceField.depth - 1;
-  const gridVolume = gridWidth * gridHeight * gridDepth;
-
-  for (let i = 0; i < gridVolume; i++) {
-    const x = i % gridWidth;
-    const y = ((i / gridWidth) | 0) % gridHeight;
-    const z = (i / gridWidth / gridHeight) | 0;
-
-    let cornerMask = 0;
-    for (let j = 0; j < 8; j++) {
-      const u = j % 2;
-      const v = ((j / 2) | 0) % 2;
-      const w = (j / 2 / 2) | 0;
-
-      const k =
-        x +
-        u +
-        (y + v) * distanceField.width +
-        (z + w) * distanceField.width * distanceField.height;
-      if (distanceField.data[k] > 0) {
-        cornerMask |= 1 << j;
-      }
-    }
-
-    // skip voxel that has no positive or negative corners
-    if (cornerMask === 0 || cornerMask === 0b11111111) continue;
-
-    const edges = edgeBitFields[cornerMask];
-
-    let edgeCount = 0;
-    let dx = 0;
-    let dy = 0;
-    let dz = 0;
-    for (let j = 0; j < cubeEdgeCornerIndices.length; j++) {
-      if (!(edges & (1 << j))) continue;
-      edgeCount++;
-
-      const c0 = cubeEdgeCornerIndices[j][0];
-      const c0x = c0 % 2;
-      const c0y = ((c0 / 2) | 0) % 2;
-      const c0z = (c0 / 2 / 2) | 0;
-      const k0 =
-        x +
-        c0x +
-        (y + c0y) * distanceField.width +
-        (z + c0z) * distanceField.width * distanceField.height;
-      const d0 = distanceField.data[k0];
-
-      const c1 = cubeEdgeCornerIndices[j][1];
-      const c1x = c1 % 2;
-      const c1y = ((c1 / 2) | 0) % 2;
-      const c1z = (c1 / 2 / 2) | 0;
-      const k1 =
-        x +
-        c1x +
-        (y + c1y) * distanceField.width +
-        (z + c1z) * distanceField.width * distanceField.height;
-      const d1 = distanceField.data[k1];
-
-      dx += c0x + ((c1x - c0x) / (d1 - d0)) * (0 - d0);
-      dy += c0y + ((c1y - c0y) / (d1 - d0)) * (0 - d0);
-      dz += c0z + ((c1z - c0z) / (d1 - d0)) * (0 - d0);
-    }
-
-    if (edgeCount === 0) continue;
-
-    gridIndices[i] = vertices.length / geometryElements;
-
-    // build vertex buffer
-    dx /= edgeCount;
-    dy /= edgeCount;
-    dz /= edgeCount;
-
-    // Shift vertex to center of the grid
-    const vx = x + 0.5 + dx;
-    const vy = y + 0.5 + dy;
-    const vz = z + 0.5 + dz;
-
-    vertices.push(vx, vy, vz);
-
-    // normal
-    // x, y, z
-    const j =
-      x +
-      y * distanceField.width +
-      z * distanceField.width * distanceField.height;
-    const d0 = distanceField.data[j];
-    const d1 = distanceField.data[j + 1];
-    const d2 = distanceField.data[j + distanceField.width];
-    const d3 = distanceField.data[j + 1 + distanceField.width];
-    const d4 =
-      distanceField.data[j + distanceField.width * distanceField.height];
-    const d5 =
-      distanceField.data[j + 1 + distanceField.width * distanceField.height];
-    const d6 =
-      distanceField.data[
-        j + distanceField.width + distanceField.width * distanceField.height
-      ];
-    const d7 =
-      distanceField.data[
-        j + 1 + distanceField.width + distanceField.width * distanceField.height
-      ];
-    const normal = [
-      d1 - d0 + d3 - d2 + d5 - d4 + d7 - d6,
-      d2 - d0 + d3 - d1 + d6 - d4 + d7 - d5,
-      d4 - d0 + d5 - d1 + d6 - d2 + d7 - d3,
-    ];
-    vec3.normalize(normal, normal);
-    vertices.push(...normal);
-
-    const quads = [];
-    if (edges & 0b000000000001) {
-      // x, y - 1, z,
-      // x, y - 1, z - 1
-      // x, y, z
-      // x, y, z - 1
-      quads.push([
-        gridIndices[i - gridWidth],
-        gridIndices[i - gridWidth - gridWidth * gridHeight],
-        gridIndices[i],
-        gridIndices[i - gridWidth * gridHeight],
-      ]);
-    }
-    if (edges & 0b000000000010) {
-      // x, y, z
-      // x, y, z - 1
-      // x - 1, y, z
-      // x - 1, y, z - 1
-      quads.push([
-        gridIndices[i],
-        gridIndices[i - gridWidth * gridHeight],
-        gridIndices[i - 1],
-        gridIndices[i - 1 - gridWidth * gridHeight],
-      ]);
-    }
-    if (edges & 0b000000010000) {
-      // x - 1, y - 1, z
-      // x, y - 1, z
-      // x - 1, y, z
-      // x, y, z
-      quads.push([
-        gridIndices[i - 1 - gridWidth],
-        gridIndices[i - gridWidth],
-        gridIndices[i - 1],
-        gridIndices[i],
-      ]);
-    }
-
-    if (quads.length === 0) continue;
-
-    // build index buffer
-    for (let j = 0; j < quads.length; j++) {
-      const q = quads[j];
-      const k0 = q[0] * geometryElements;
-      const k1 = q[1] * geometryElements;
-      const k2 = q[2] * geometryElements;
-      const k3 = q[3] * geometryElements;
-      const shorterDiagonal =
-        vec3.distance(
-          [vertices[k0], vertices[k0 + 1], vertices[k0 + 2]],
-          [vertices[k3], vertices[k3 + 1], vertices[k3 + 2]]
-        ) <
-        vec3.distance(
-          [vertices[k1], vertices[k1 + 1], vertices[k1 + 2]],
-          [vertices[k2], vertices[k2 + 1], vertices[k2 + 2]]
-        )
-          ? 0
-          : 1;
-      if (cornerMask & 1) {
-        if (shorterDiagonal === 0) {
-          indices.push(q[0], q[3], q[1], q[0], q[2], q[3]);
-        } else {
-          indices.push(q[0], q[2], q[1], q[1], q[2], q[3]);
-        }
-      } else {
-        if (shorterDiagonal === 0) {
-          indices.push(q[0], q[1], q[3], q[0], q[3], q[2]);
-        } else {
-          indices.push(q[0], q[1], q[2], q[1], q[3], q[2]);
-        }
-      }
-    }
-  }
-
-  return {
-    vertices: new Float32Array(vertices),
-    indices: new Uint16Array(indices),
-  };
-}
-
-const distanceField = new DistanceField(32);
-
-distanceField.drawDistanceFunction(
-  translate(
-    distanceField.width / 2,
-    distanceField.height / 2,
-    distanceField.depth / 2,
-    merge(
-      // torus(distanceField.width / 4, distanceField.width / 16),
-      sphere(distanceField.width / 4)
-    )
-  )
+draw(
+  width,
+  height,
+  depth,
+  data,
+  sphere(width / 2, height / 2, depth / 2, width / 4)
 );
 
-const geometryData = getGeometryData(distanceField);
+const geometryData = getGeometryData(width, height, depth, data);
 
 const editor = document.getElementById("editor");
 const canvas = editor.querySelector("canvas");
@@ -304,6 +24,8 @@ const gl = canvas.getContext("webgl", {
   antialias: false,
   preserveDrawingBuffer: false,
 });
+
+gl.getExtension("OES_element_index_uint");
 
 gl.clearColor(0, 0, 0, 1);
 gl.clearDepth(1);
@@ -441,25 +163,25 @@ const a_normal = gl.getAttribLocation(program, "a_normal");
 
 const vertexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, geometryData.vertices, gl.STATIC_DRAW);
-gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, geometryStrides, 0);
+gl.bufferData(gl.ARRAY_BUFFER, geometryData.positions, gl.STATIC_DRAW);
+gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
 gl.enableVertexAttribArray(a_position);
-gl.vertexAttribPointer(a_normal, 3, gl.FLOAT, true, geometryStrides, 12);
+
+const normalBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, geometryData.normals, gl.STATIC_DRAW);
+gl.vertexAttribPointer(a_normal, 3, gl.FLOAT, true, 0, 0);
 gl.enableVertexAttribArray(a_normal);
 
 const indexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometryData.indices, gl.STATIC_DRAW);
 
-const translation = [
-  distanceField.width * -0.5,
-  distanceField.height * -0.5,
-  distanceField.depth * -0.5,
-];
+const translation = [width * -0.5, height * -0.5, depth * -0.5];
 const model = mat4.fromTranslation(mat4.create(), translation);
 
 const eyeRotation = [0, 0];
-let eyeDistance = distanceField.depth;
+let eyeDistance = depth;
 const center = [0, 0, 0];
 const up = [0, 1, 0];
 
@@ -495,7 +217,7 @@ function render(timestamp) {
   gl.drawElements(
     gl.TRIANGLES,
     geometryData.indices.length,
-    gl.UNSIGNED_SHORT,
+    gl.UNSIGNED_INT,
     0
   );
 
@@ -584,36 +306,33 @@ requestAnimationFrame(render);
 
 const debugPanel = document.getElementById("debug-panel");
 const debugPanelCanvas = debugPanel.querySelector("canvas");
-debugPanelCanvas.width = distanceField.width;
-debugPanelCanvas.height = distanceField.height;
+debugPanelCanvas.width = width;
+debugPanelCanvas.height = height;
 const debugPanelInput = debugPanel.querySelector("input");
 debugPanelInput.min = 0;
 debugPanelInput.value = 0;
-debugPanelInput.max = distanceField.depth - 1;
+debugPanelInput.max = depth - 1;
 const debugPanelSDFSliceZ = debugPanel.querySelector("#sdf-slice-z");
 
 function renderDebugPanelDistanceFieldSlice() {
   const ctx = debugPanelCanvas.getContext("2d");
-  const distanceFieldSliceArea = distanceField.width * distanceField.height;
+  const distanceFieldSliceArea = width * height;
   const z = debugPanelInput.valueAsNumber;
   debugPanelSDFSliceZ.textContent = z;
 
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (let i = 0; i < distanceFieldSliceArea; i++) {
-    const x = i % distanceField.width;
-    const y = (i / distanceField.width) | 0;
+    const x = i % width;
+    const y = (i / width) | 0;
 
-    const j =
-      x +
-      y * distanceField.width +
-      z * distanceField.width * distanceField.height;
-    const value = distanceField.data[j];
+    const j = x + y * width + z * width * height;
+    const value = data[j];
 
     const r = value > 0 ? Math.min(255, 255 * value) : 0;
     const g = value < 0 ? Math.min(255, 255 * value * -1) : 0;
     ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;
     // inverse y axis because data has right-handed coordinate system
-    ctx.fillRect(x, distanceField.height - 1 - y, 1, 1);
+    ctx.fillRect(x, height - 1 - y, 1, 1);
   }
 }
 
@@ -637,16 +356,16 @@ const byteCompactFormat = new Intl.NumberFormat("en", {
   unitDisplay: "narrow",
 });
 
-debugPanel.querySelector("#field-width").textContent = distanceField.width;
-debugPanel.querySelector("#field-height").textContent = distanceField.height;
-debugPanel.querySelector("#field-depth").textContent = distanceField.depth;
+debugPanel.querySelector("#field-width").textContent = width;
+debugPanel.querySelector("#field-height").textContent = height;
+debugPanel.querySelector("#field-depth").textContent = depth;
 
 debugPanel.querySelector("#data-count").textContent =
-  byteStandardFormat.format(distanceField.data.length * 4) +
-  ` (${byteCompactFormat.format(distanceField.data.length * 4)})`;
+  byteStandardFormat.format(data.length * 4) +
+  ` (${byteCompactFormat.format(data.length * 4)})`;
 
 debugPanel.querySelector("#vertices-count").textContent = decimalFormat.format(
-  geometryData.vertices.length / 6
+  geometryData.positions.length / 6
 );
 
 renderDebugPanelDistanceFieldSlice();
